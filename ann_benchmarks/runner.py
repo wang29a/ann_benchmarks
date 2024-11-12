@@ -194,7 +194,7 @@ def build_index(algo: BaseANN, X_train: numpy.ndarray) -> Tuple:
     return build_time, index_size
 
 
-def run(definition: Definition, dataset_name: str, count: int, run_count: int, batch: bool) -> None:
+def run(definition: Definition, dataset_name: str, count: int, run_count: int, batch: bool, skip_fit: bool) -> None:
     """Run the algorithm benchmarking.
 
     Args:
@@ -217,8 +217,13 @@ function"""
     try:
         if hasattr(algo, "supports_prepared_queries"):
             algo.supports_prepared_queries()
+        build_time = 0
+        index_size = 0
+        if not skip_fit:
+            print("Fitting...")
+            build_time, index_size = build_index(algo, X_train)
 
-        build_time, index_size = build_index(algo, X_train)
+       #  build_time, index_size = build_index(algo, X_train)
 
         query_argument_groups = definition.query_argument_groups or [[]]  # Ensure at least one iteration
 

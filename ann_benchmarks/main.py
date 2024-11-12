@@ -67,7 +67,7 @@ def run_worker(cpu: int, args: argparse.Namespace, queue: multiprocessing.Queue)
     while not queue.empty():
         definition = queue.get()
         if args.local:
-            run(definition, args.dataset, args.count, args.runs, args.batch)
+            run(definition, args.dataset, args.count, args.runs, args.batch, args.skip_fit)
         else:
             memory_margin = 500e6  # reserve some extra memory for misc stuff
             mem_limit = int((psutil.virtual_memory().available - memory_margin) / args.parallelism)
@@ -87,6 +87,11 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "-k", "--count", default=10, type=positive_int, help="the number of near neighbours to search for"
+    )
+    parser.add_argument(
+        "--skip_fit",
+        action="store_true",
+        help="If set, then will skip fitting the training data(build index)",
     )
     parser.add_argument(
         "--definitions", metavar="FOLDER", help="base directory of algorithms. Algorithm definitions expected at 'FOLDER/*/config.yml'", default="ann_benchmarks/algorithms"

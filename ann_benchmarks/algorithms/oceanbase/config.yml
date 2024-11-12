@@ -1,0 +1,13 @@
+float:
+  any:
+  - base_args: ['@metric']
+    constructor: OBVector
+    disabled: false
+    docker_tag: oceanbase
+    module: ann_benchmarks.algorithms.oceanbase
+    name: oceanbase
+    run_groups:
+      M-24:
+        arg_groups: [{M: 16, efConstruction: 200}]
+        args: {}
+        query_args: [[400]]
