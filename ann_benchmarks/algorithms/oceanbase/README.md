@@ -36,5 +36,7 @@ Computing knn metrics
 ```
 
 ## 运行向量标量混合场景测试
-运行混合场景测试需要先导入数据并构建索引。
-运行当前目录下的 hybrid_ann.py 即可。
+```bash
+python -m ann_benchmarks.algorithms.oceanbase.hybrid_ann
+python -m ann_benchmarks.algorithms.oceanbase.hybrid_ann --skip_fit
+```
