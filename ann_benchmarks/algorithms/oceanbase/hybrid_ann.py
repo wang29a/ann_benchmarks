@@ -7,6 +7,7 @@ import numpy as np
 from ...runner import load_and_transform_dataset
 
 def execute_and_fetch(cursor, query):
+    # print(query)
     cursor.execute(query)
     results = cursor.fetchall()
     return results
@@ -75,7 +76,7 @@ def fit(cur, X):
             time.sleep(5)
     print("major freeze end") 
 
-def start_ann2(cur, X_test):
+def start_ann2(cur, X_test, queries_to_run):
     try:
         items_processed = 0
         # 查询限制条件
@@ -91,19 +92,17 @@ def start_ann2(cur, X_test):
         total_time_sql2 = 0
         total_time_sql3 = 0
 
-        for v in X_test[:10]:
+        for v in X_test[:10000]:
             vector ="'[%s]'" % ','.join([str(ele) for ele in v])
             # Test SQL1
-            base_query1 = "SELECT id FROM (SELECT id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {});"
-            test_query1 = "SELECT * FROM (SELECT id FROM items1 ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {});"
-            recall, exec_time = test_sql(cur, base_query1.format(vector, limit), test_query1.format(vector, limit))
-            results_sql1.append((recall, exec_time))
-            total_time_sql1 += exec_time
+            if "sql1" in queries_to_run:
+                base_query1 = "SELECT id FROM (SELECT id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {});"
+                test_query1 = "SELECT * FROM (SELECT id FROM items1 ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {});"
+                recall, exec_time = test_sql(cur, base_query1.format(vector, limit), test_query1.format(vector, limit))
+                results_sql1.append((recall, exec_time))
+                total_time_sql1 += exec_time
             
 
-            # Test SQL2
-            base_query2 = "SELECT id FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
-            test_query2 = "SELECT id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
             # 随机生成 `c1` 的值
             # 正态分布参数
             mean = 500          # 均值
@@ -112,19 +111,24 @@ def start_ann2(cur, X_test):
 
             # 使用正态分布生成随机数并限制在 [200, 801) 范围内
             params = [int(x) for x in np.clip(np.random.normal(mean, std_dev, size), 200, 800)]
-            recall, exec_time = run_queries(cur, vector, limit, base_query2, test_query2, params)
-            results_sql2.append((recall, exec_time))
-            total_time_sql2 += exec_time
+            # Test SQL2
+            if "sql2" in queries_to_run:
+                base_query2 = "SELECT id FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
+                test_query2 = "SELECT id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
+                recall, exec_time = run_queries(cur, vector, limit, base_query2, test_query2, params)
+                results_sql2.append((recall, exec_time))
+                total_time_sql2 += exec_time
 
             # Test SQL3
-            base_query3 = "SELECT * FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
-            test_query3 = "SELECT c1, id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
-            recall, exec_time = run_queries(cur, vector, limit, base_query3, test_query3, params)
-            results_sql3.append((recall, exec_time))
-            total_time_sql3 += exec_time
-            items_processed += 1
-            if items_processed % 1 == 0:
-                print("Processed %d/%d queries..." % (items_processed, len(X_test)))
+            if "sql3" in queries_to_run:
+                base_query3 = "SELECT * FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
+                test_query3 = "SELECT c1, id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
+                recall, exec_time = run_queries(cur, vector, limit, base_query3, test_query3, params)
+                results_sql3.append((recall, exec_time))
+                total_time_sql3 += exec_time
+                items_processed += 1
+                if items_processed % 1 == 0:
+                    print("Processed %d/%d queries..." % (items_processed, len(X_test)))
 
         # Print results
         def print_results(query_name, results, total_time):
@@ -134,9 +138,13 @@ def start_ann2(cur, X_test):
                 print(f"Run {idx}: Recall: {recall:.2f}, Query executed in: {exec_time} seconds")
             print(f"Total execution time for {query_name}: {total_time:.6f} seconds")
 
-        print_results("SQL1", results_sql1, total_time_sql1)
-        print_results("SQL2", results_sql2, total_time_sql2)
-        print_results("SQL3", results_sql3, total_time_sql3)
+
+        if "sql1" in queries_to_run:
+            print_results("SQL1", results_sql1, total_time_sql1)
+        if "sql2" in queries_to_run:
+            print_results("SQL2", results_sql2, total_time_sql2)
+        if "sql3" in queries_to_run:
+            print_results("SQL3", results_sql3, total_time_sql3)
 
     except pymysql.MySQLError as e:
         print(f"Error: {e}")
@@ -156,6 +164,12 @@ def parse_arguments():
         action="store_true", 
         help="If set, skip the fit process"
     )
+    parser.add_argument(
+        "--queries", 
+        type=str, 
+        default="sql1,sql2,sql3", 
+        help="Comma-separated list of queries to run (e.g., sql1,sql2,sql3)"
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -172,4 +186,5 @@ if __name__ == "__main__":
     if not args.skip_fit:
         fit(cursor, X_train)
 
-    start_ann2(cursor, X_test)
+    queries_to_run = args.queries.split(",")
+    start_ann2(cursor, X_test, queries_to_run)
