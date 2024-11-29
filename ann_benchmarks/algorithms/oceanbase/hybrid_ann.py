@@ -13,10 +13,21 @@ def execute_and_fetch(cursor, query):
     return results
 
 def calculate_recall(correct_result, result):
-    if len(result) == 0:  # 避免除零错误
-        return 0  # 当结果为空时，召回率定义为 0
-    unmatched_count = sum(1 for item in result if item not in correct_result)
-    recall = 1 - unmatched_count / len(result)
+    # if len(result) == 0:  # 避免除零错误
+    #     return 0  # 当结果为空时，召回率定义为 0
+    # unmatched_count = sum(1 for item in result if item not in correct_result)
+    # recall = 1 - unmatched_count / len(result)
+    # return recall
+    if not correct_result:
+        return 0.0
+
+    correct_set = set(correct_result)
+    result_set = set(result)
+    
+    true_positives = len(correct_set & result_set)
+    
+    recall = true_positives / len(correct_set)
+    
     return recall
 
 def test_sql(cursor, ivf_sql, sql):
