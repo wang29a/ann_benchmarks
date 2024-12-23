@@ -33,10 +33,13 @@ def calculate_recall(correct_result, result):
 def test_sql(cursor, ivf_sql, sql):
     correct_result = execute_and_fetch(cursor, ivf_sql)
  
+    # print(ivf_sql, sql, sep='\n')
     start_time = time.perf_counter()
     result = execute_and_fetch(cursor, sql)
     end_time = time.perf_counter()
     recall = calculate_recall(correct_result, result)
+    # recall = 0
+    # print(correct_result, result, sep='\n')
     execution_time = end_time - start_time
     return recall, execution_time
 
@@ -58,6 +61,7 @@ def fit(cur, X):
     data = np.random.normal(mean, std_dev, size)
     cur.execute("alter system set ob_vector_memory_limit_percentage=34;")
     cur.execute("DROP TABLE IF EXISTS items1;")
+    print("data set size", X.shape[1])
     cur.execute(f"CREATE TABLE items1 (id int,c1 int, embedding vector({X.shape[1]}), primary key(id),key(c1));")
     cur.execute("set autocommit=1;")
     print("copying data: data size: %d..." % X.shape[0])
@@ -103,7 +107,7 @@ def start_ann2(cur, X_test, queries_to_run):
         total_time_sql2 = 0
         total_time_sql3 = 0
 
-        for v in X_test[:10000]:
+        for v in X_test[:10]:
             vector ="'[%s]'" % ','.join([str(ele) for ele in v])
             # Test SQL1
             if "sql1" in queries_to_run:
@@ -127,6 +131,7 @@ def start_ann2(cur, X_test, queries_to_run):
                 base_query2 = "SELECT id FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
                 test_query2 = "SELECT id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
                 recall, exec_time = run_queries(cur, vector, limit, base_query2, test_query2, params)
+                exec_time = exec_time / size
                 results_sql2.append((recall, exec_time))
                 total_time_sql2 += exec_time
 
@@ -135,11 +140,12 @@ def start_ann2(cur, X_test, queries_to_run):
                 base_query3 = "SELECT * FROM (SELECT c1, id FROM items1 ORDER BY L2_distance(embedding, {}) LIMIT {}) WHERE c1={};"
                 test_query3 = "SELECT c1, id FROM items1 WHERE c1={} ORDER BY L2_distance(embedding, {}) APPROXIMATE LIMIT {};"
                 recall, exec_time = run_queries(cur, vector, limit, base_query3, test_query3, params)
+                exec_time = exec_time / size
                 results_sql3.append((recall, exec_time))
                 total_time_sql3 += exec_time
-                items_processed += 1
-                if items_processed % 1 == 0:
-                    print("Processed %d/%d queries..." % (items_processed, len(X_test)))
+            items_processed += 1
+            if items_processed % 1 == 0:
+                print("Processed %d/%d queries..." % (items_processed, len(X_test)))
 
         # Print results
         def print_results(query_name, results, total_time):
