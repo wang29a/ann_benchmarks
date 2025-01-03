@@ -31,14 +31,14 @@ def calculate_recall(correct_result, result):
     return recall
 
 def test_sql(cursor, ivf_sql, sql):
-    correct_result = execute_and_fetch(cursor, ivf_sql)
+    # correct_result = execute_and_fetch(cursor, ivf_sql)
  
     # print(ivf_sql, sql, sep='\n')
     start_time = time.perf_counter()
     result = execute_and_fetch(cursor, sql)
     end_time = time.perf_counter()
-    recall = calculate_recall(correct_result, result)
-    # recall = 0
+    # recall = calculate_recall(correct_result, result)
+    recall = 0
     # print(correct_result, result, sep='\n')
     execution_time = end_time - start_time
     return recall, execution_time
